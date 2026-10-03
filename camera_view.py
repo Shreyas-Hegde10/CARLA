@@ -35,7 +35,11 @@ def main():
     camera_bp.set_attribute('image_size_x', '800')
     camera_bp.set_attribute('image_size_y', '600')
     camera_bp.set_attribute('fov', '90')
-    camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
+    camera_transform = carla.Transform(
+	carla.Location(x=-6.5, z=3.0), 
+        carla.Rotation(pitch=-15.0)
+    )
+
     camera = world.spawn_actor(camera_bp, camera_transform, attach_to=vehicle)
 
     image_queue = queue.Queue()
