@@ -1,7 +1,7 @@
 """
 Attaches several of CARLA's sensor types to your already-spawned vehicle
 and prints each one's raw output as it arrives, so you can see exactly
-what data format each sensor actually produces.
+dxxwhat data format each sensor actually produces.
 
 Sensors covered here:
   - sensor.other.lane_invasion   (event: fires when a lane line is crossed)
@@ -16,9 +16,12 @@ Run on your laptop with the SSH tunnel open, after a vehicle is already
 spawned (e.g. via carla_camera_view.py).
 """
 
+from email.mime import image
+
 import carla
 import numpy as np
-import time
+import time 
+import cv2
 
 def main():
     client = carla.Client('localhost', 2000)
@@ -74,10 +77,12 @@ def main():
 
     def on_imu(data):
         acc = data.accelerometer
-        gyro = data.gyroscope
-	acc_magnitude 
-        print(f"[IMU] frame={data.frame} accel=({acc.x:.2f},{acc.y:.2f},{acc.z:.2f}) "
-              f"gyro=({gyro.x:.2f},{gyro.y:.2f},{gyro.z:.2f}) compass={data.compass:.2f}")
+        gyro = data.gyroscope 
+        compass = data.compass
+        acc_magnitude = (acc.x**2 + acc.y**2 + acc.z**2) ** 0.5    
+        gyro_magnitude = (gyro.x**2 + gyro.y**2 + gyro.z**2) ** 0.5  
+        print(f"[IMU] frame={data.frame} accel=({acc.x:.2f},{acc.y:.2f},{acc.z:.2f}, acc_magnitude = {acc_magnitude}) "
+              f"gyro=({gyro.x:.2f},{gyro.y:.2f},{gyro.z:.2f}, gyro_magnitude = {gyro_magnitude}) compass={compass:.2f}")
 
     imu_sensor.listen(on_imu)
 
@@ -90,12 +95,19 @@ def main():
     actors_to_cleanup.append(semseg_sensor)
 
     def on_semseg(image):
-        # Each pixel's RED channel holds the semantic class id
+        # Raw semseg data packs the class id into the R channel of each
+        # pixel. convert() recolors the image in-place using CARLA's
+        # standard CityScapes-style palette, so each class gets a fixed,
+        # recognizable color (road=purple, lane lines=white, vehicles=
+        # blue, pedestrians=red, etc).
+        image.convert(carla.ColorConverter.CityScapesPalette)
+ 
         array = np.frombuffer(image.raw_data, dtype=np.uint8)
         array = array.reshape((image.height, image.width, 4))
-        class_ids = array[:, :, 2]  # CARLA packs class id in the R channel (BGRA order -> index 2)
-        unique_classes = np.unique(class_ids)
-        print(f"[SEMSEG] frame={image.frame} classes present in view: {list(unique_classes)}")
+        frame = array[:, :, :3]  # drop alpha, same as the RGB camera script
+ 
+        cv2.imshow('Semantic Segmentation', frame)
+        cv2.waitKey(1)
 
     semseg_sensor.listen(on_semseg)
 
