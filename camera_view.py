@@ -57,9 +57,10 @@ def main():
 
     # Attach an RGB camera facing forward, mounted like a dashcam.
     camera_bp = blueprint_library.find('sensor.camera.rgb')
-    camera_bp.set_attribute('image_size_x', '800')
-    camera_bp.set_attribute('image_size_y', '600')
+    camera_bp.set_attribute('image_size_x', '400')
+    camera_bp.set_attribute('image_size_y', '300')
     camera_bp.set_attribute('fov', '90')
+    camera_bp.set_attribute('sensor_tick', '0.1') 
     camera_transform = carla.Transform(
 	carla.Location(x=-6.5, z=3.0), 
         carla.Rotation(pitch=-15.0)
