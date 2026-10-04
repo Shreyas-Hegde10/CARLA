@@ -11,12 +11,38 @@ import carla
 import numpy as np
 import cv2
 import random
-import queue
+import queue  
+import math
+
+
+def lateral_offset(vehicle_transform, waypoint_transform): 
+        """
+        Returns signed lateral distance(in metres) from the vehicle's position to 
+        the waypoint's centerline, using a vector perpendicular to the lane to determine 
+        the sign 
+
+        Positive: vehicle is right of centre 
+        Negative: vehicle is left of centre
+        """ 
+
+        vehicle_location = vehicle_transform.location #3D vector of distance from vehicle origin to a spot in metres 
+        waypoint_location = waypoint_transform.location 
+
+        dx = vehicle_location.x - waypoint_location.x 
+        dy = vehicle_location.y - waypoint_location.y
+
+        yaw_rad = math.radians(waypoint_transform.rotation.yaw)
+        right_x = math.cos(yaw_rad + math.radians(90))
+        right_y = math.sin(yaw_rad + math.radians(90)) 
+
+        return dx * right_x + dy * right_y 
+        
 
 def main():
     client = carla.Client('localhost', 2000)
     client.set_timeout(10.0) # Sets the amount of time that a network call is allowed to execute; if it exceeds said value, an exception is raised 
-    world = client.get_world()
+    world = client.get_world() 
+    carla_map = world.get_map()
 
     blueprint_library = world.get_blueprint_library()
     vehicle_bp = blueprint_library.find('vehicle.audi.etron') 
@@ -26,9 +52,7 @@ def main():
     vehicle = world.spawn_actor(vehicle_bp, spawn_point)
     print(f"Spawned {vehicle_bp.id} at {spawn_point.location}")
 
-    # Put the vehicle in autopilot so it actually moves and there's
-    # something to look at.
-    vehicle.set_autopilot(True)
+    vehicle.set_autopilot(False)
 
     # Attach an RGB camera facing forward, mounted like a dashcam.
     camera_bp = blueprint_library.find('sensor.camera.rgb')
@@ -47,6 +71,8 @@ def main():
 
     print("Streaming camera feed. Press 'q' in the image window to quit.")
 
+    frame_count = 0 
+
     try:
         while True:
             image = image_queue.get() # CARLA represents images with 32-bit BGRA colours
@@ -54,11 +80,24 @@ def main():
             array = array.reshape((image.height, image.width, 4))  # BGRA
             frame = array[:, :, :3]  # drop alpha channel since cv2.imshow expects only 3 channels(R,G,B)
 
+            # get lateral offset per frame
+            vehicle_transform = vehicle.get_transform 
+            waypoint_transform = carla_map.get_waypoint(vehicle_transform.location,project_to_road=True, lane_type=carla.LaneType.Driving).transform 
+            offset = lateral_offset(vehicle_transform, waypoint_transform) 
+
+            frame_count +=1 
+            if frame_count % 10 == 0: 
+                print(f"Lateral offset from lane center: {offset:.2f} m")
+
+            # Manual control: constant light throttle, no steering correction just yet
+            vehicle.apply_control(carla.VehicleControl(throttle=0.3, steer=0.0))
+
             cv2.imshow('CARLA Camera', frame)
+
             #cv2.waitKey(1) returns the character code of the currently pressed key. In some operating systems, 
-	    #cv2.waitKey(1) returns more than one byte for the character code, which doesn't allow for comparison with 
+	        #cv2.waitKey(1) returns more than one byte for the character code, which doesn't allow for comparison with 
             # ord('q'), which returns a single byte representation(ASCII) of the key. Thus, the boolean flag 0xFF is
-	    # used to ensure that only the last byte is extracted from the result of cv2.waitKey(1)
+	        # used to ensure that only the last byte is extracted from the result of cv2.waitKey(1)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
     finally:
