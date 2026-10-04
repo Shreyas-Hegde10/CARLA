@@ -53,7 +53,7 @@ def main():
     print(f"Spawned {vehicle_bp.id} at {spawn_point.location}")
 
     vehicle.set_autopilot(False) 
-    Kp = 0.5 # Proportional gain constant for steering control 
+    Kp = 0.4 # Proportional gain constant for steering control 
 
     # Attach an RGB camera facing forward, mounted like a dashcam.
     camera_bp = blueprint_library.find('sensor.camera.rgb')
@@ -82,7 +82,7 @@ def main():
             frame = array[:, :, :3]  # drop alpha channel since cv2.imshow expects only 3 channels(R,G,B)
 
             # get lateral offset per frame
-            vehicle_transform = vehicle.get_transform 
+            vehicle_transform = vehicle.get_transform() 
             waypoint_transform = carla_map.get_waypoint(vehicle_transform.location,project_to_road=True, lane_type=carla.LaneType.Driving).transform 
             offset = lateral_offset(vehicle_transform, waypoint_transform) 
 
@@ -93,7 +93,7 @@ def main():
             frame_count +=1 
             if frame_count % 10 == 0: 
                 print(f"[LANE OFFSET] {offset:+.3f} m | [STEER] {steer:+.3f}")
-                
+
             vehicle.apply_control(carla.VehicleControl(throttle=0.3, steer=steer)) 
 
             cv2.imshow('CARLA Camera', frame)
