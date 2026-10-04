@@ -92,8 +92,8 @@ def main():
 
             frame_count +=1 
             if frame_count % 10 == 0: 
-                print(f"Lateral offset from lane center: {offset:.2f} m")
-
+                print(f"[LANE OFFSET] {offset:+.3f} m | [STEER] {steer:+.3f}")
+                
             vehicle.apply_control(carla.VehicleControl(throttle=0.3, steer=steer)) 
 
             cv2.imshow('CARLA Camera', frame)
